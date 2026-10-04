@@ -1,0 +1,1138 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pinfield | Inspection data</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #18312e;
+      --muted: #73817c;
+      --line: #dfe6df;
+      --paper: #f3f5ef;
+      --white: #fffefa;
+      --green: #176c54;
+      --green-dark: #104d3d;
+      --mint: #dcefe5;
+      --coral: #d86650;
+      --gold: #d7a445;
+      --mono: "DM Mono", Consolas, monospace;
+      --sans: "Manrope", "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); }
+    button, input, select { font: inherit; }
+    button { color: inherit; }
+    .topbar { min-height: 68px; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 0 4.2vw; background: var(--white); border-bottom: 1px solid var(--line); }
+    .brand { display: flex; align-items: center; gap: 11px; font-weight: 800; letter-spacing: 0; }
+    .brand-mark { width: 29px; height: 29px; display: grid; place-items: center; border-radius: 8px; background: var(--green); color: white; font-family: var(--mono); font-size: 13px; }
+    .brand small { display: block; margin-top: 1px; color: var(--muted); font-size: 10px; font-weight: 600; letter-spacing: 0; }
+    .file-tools { display: flex; align-items: center; gap: 12px; }
+    .dataset-state { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+    .state-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); }
+    .state-dot.ready { background: #33a676; }
+    .load-button { padding: 9px 13px; border: 1px solid var(--line); border-radius: 6px; background: white; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: none; }
+    .load-button:hover { border-color: var(--green); color: var(--green); }
+    #fileInput { display: none; }
+    main { max-width: 1440px; margin: 0 auto; padding: 25px 4.2vw 42px; }
+    .heading { display: flex; justify-content: space-between; align-items: end; gap: 18px; margin-bottom: 20px; }
+    .eyebrow { margin: 0 0 6px; color: var(--green); font: 500 10px var(--mono); letter-spacing: 0; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(22px, 2.4vw, 30px); line-height: 1.15; font-weight: 800; }
+    .heading-note { margin: 0; color: var(--muted); font-size: 12px; text-align: right; }
+    .tabs { display: flex; gap: 4px; width: fit-content; margin-bottom: 18px; padding: 4px; border: 1px solid var(--line); border-radius: 8px; background: #e9ede6; flex-wrap: wrap; }
+    .tab { display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border: 0; border-radius: 5px; background: transparent; color: #68766f; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .tab[aria-selected="true"] { background: var(--white); color: var(--green-dark); box-shadow: 0 1px 3px #18312e14; }
+    .tab-index { font: 11px var(--mono); opacity: .66; }
+    .filters { display: flex; align-items: end; gap: 12px; margin-bottom: 16px; padding: 13px 15px; border: 1px solid var(--line); border-radius: 7px; background: var(--white); flex-wrap: wrap; }
+    .filter-label { display: grid; gap: 5px; color: var(--muted); font: 10px var(--mono); text-transform: uppercase; }
+    .filter-label input, .filter-label select { min-width: 205px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 4px; background: white; color: var(--ink); font: 12px var(--mono); }
+    .range-arrow { padding: 0 2px 8px; color: #a0aaa3; }
+    .filter-summary { margin-left: auto; padding-bottom: 7px; color: var(--muted); font-size: 11px; }
+    .filter-summary strong { color: var(--ink); font-family: var(--mono); font-weight: 500; }
+    .workspace { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 16px; align-items: stretch; }
+    .panel { border: 1px solid var(--line); border-radius: 7px; background: var(--white); }
+    .connector-panel { padding: 17px; }
+    .panel-kicker { margin: 0 0 4px; color: var(--muted); font: 10px var(--mono); letter-spacing: 0; text-transform: uppercase; }
+    .panel-title { margin: 0; font-size: 14px; font-weight: 800; }
+    .connector { position: relative; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 13px 7px; margin: 31px 1px 18px; padding: 22px 12px; border: 1px solid #cbd4cb; border-radius: 6px; background-color: #eef2e9; background-image: radial-gradient(#b9c5b9 0.7px, transparent 0.7px); background-size: 12px 12px; }
+    .connector::before { content: "PCB SIDE"; position: absolute; top: -19px; left: 0; color: #95a198; font: 9px var(--mono); letter-spacing: 0; }
+    .pin-button { aspect-ratio: 1; min-width: 0; display: grid; place-items: center; border: 1px solid #bac7bc; border-radius: 50%; background: #fffefa; color: #55665d; font: 11px var(--mono); cursor: pointer; transition: transform .16s, background .16s, color .16s, border-color .16s; }
+    .pin-button:hover { transform: translateY(-2px); border-color: var(--green); }
+    .pin-button[aria-pressed="true"] { border: 2px solid var(--green); background: var(--green); color: white; box-shadow: 0 0 0 4px #176c541b; }
+    .connector-caption { display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: 10px; }
+    .pin-detail { margin-top: 17px; padding-top: 14px; border-top: 1px solid var(--line); }
+    .pin-detail-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .pin-name { font-size: 14px; font-weight: 800; }
+    .nominal-chip { padding: 5px 7px; border-radius: 4px; background: var(--mint); color: var(--green-dark); font: 10px var(--mono); }
+    .metric-row { display: flex; gap: 16px; margin-top: 13px; }
+    .metric { display: grid; gap: 3px; }
+    .metric span { color: var(--muted); font: 9px var(--mono); text-transform: uppercase; }
+    .metric strong { font: 12px var(--mono); }
+    .chart-panel { min-width: 0; padding: 16px 18px 10px; }
+    .chart-head { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+    .chart-title { margin: 0; font-size: 14px; font-weight: 800; }
+    .chart-subtitle { margin: 5px 0 0; color: var(--muted); font-size: 11px; }
+    .legend { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 10px; white-space: nowrap; }
+    .legend-item { display: inline-flex; align-items: center; gap: 5px; }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+    .legend-dot.fail { background: var(--coral); }
+    .legend-ring { width: 11px; height: 11px; border: 1px dashed var(--gold); border-radius: 50%; }
+    #scatter, #distributionChart, #controlChart { width: 100%; height: 420px; }
+    .empty-chart { height: 420px; display: grid; place-items: center; color: var(--muted); font-size: 13px; text-align: center; }
+    .tab-content[hidden] { display: none; }
+    .csv-panel { overflow: hidden; }
+    .csv-tools { padding: 17px; border-bottom: 1px solid var(--line); }
+    .csv-tools-top { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+    .csv-tools .panel-title { font-size: 15px; }
+    .pin-select { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+    .pin-check { position: relative; }
+    .pin-check input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+    .pin-check span { display: block; min-width: 48px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 4px; color: #64736b; font: 10px var(--mono); text-align: center; cursor: pointer; }
+    .pin-check input:checked + span { border-color: #88b09b; background: var(--mint); color: var(--green-dark); }
+    .pin-check input:focus-visible + span { outline: 2px solid var(--green); outline-offset: 2px; }
+    .selection-actions { display: flex; gap: 8px; margin-left: auto; }
+    .text-button { padding: 4px; border: 0; background: none; color: var(--green); font-size: 10px; font-weight: 700; cursor: pointer; }
+    .table-wrap { overflow: auto; max-height: 570px; }
+    table { width: 100%; border-collapse: collapse; white-space: nowrap; font-size: 11px; }
+    thead { position: sticky; top: 0; z-index: 1; background: #edf2ec; }
+    th { padding: 10px 12px; color: #65746a; font: 9px var(--mono); letter-spacing: 0; text-align: left; text-transform: uppercase; }
+    td { padding: 9px 12px; border-top: 1px solid #edf0ea; font-family: var(--mono); font-size: 10px; }
+    tbody tr:hover { background: #f5f8f2; }
+    .result { display: inline-block; min-width: 42px; padding: 3px 5px; border-radius: 3px; background: var(--mint); color: var(--green-dark); font: 9px var(--mono); text-align: center; }
+    .result.fail { background: #f8e5df; color: #a34231; }
+    .delta-fail { color: #bd4c38; }
+    .table-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; }
+    .pagination { display: flex; align-items: center; gap: 8px; }
+    .page-button { padding: 5px 9px; border: 1px solid var(--line); border-radius: 4px; background: white; cursor: pointer; }
+    .page-button:disabled { opacity: .4; cursor: default; }
+    .notice { display: none; margin-bottom: 13px; padding: 10px 12px; border: 1px solid #e4d5ad; border-radius: 5px; background: #fff9e9; color: #765e2e; font-size: 11px; }
+    .notice.visible { display: block; }
+    @media (max-width: 780px) {
+      .topbar { padding: 0 16px; }
+      .dataset-state { max-width: 105px; font-size: 10px; }
+      main { padding: 22px 16px 32px; }
+      .heading { align-items: start; }
+      .heading-note { max-width: 145px; font-size: 10px; }
+      .workspace { grid-template-columns: 1fr; }
+      .connector-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(130px, .8fr); align-items: center; gap: 0 14px; }
+      .connector-panel > .panel-kicker, .connector-panel > .panel-title { grid-column: 1 / -1; }
+      .connector { grid-row: span 2; margin-bottom: 4px; }
+      .connector-caption { grid-column: 1; }
+      .pin-detail { margin-top: 0; padding-top: 0; border-top: 0; }
+      #scatter, #distributionChart, #controlChart { height: 340px; }
+      .filters { flex-wrap: wrap; }
+      .filter-label { flex: 1; }
+      .filter-label input, .filter-label select { min-width: 0; width: 100%; }
+      .filter-summary { width: 100%; margin-left: 0; padding-bottom: 0; }
+    }
+    @media (max-width: 480px) {
+      .brand small { display: none; }
+      .file-tools { gap: 7px; }
+      .load-button { padding: 8px; font-size: 10px; }
+      .heading-note { display: none; }
+      .tabs { width: 100%; }
+      .tab { flex: 1; justify-content: center; padding: 9px 6px; font-size: 10px; }
+      .connector-panel { grid-template-columns: 1fr; }
+      .connector { grid-row: auto; }
+      .connector-caption { grid-column: auto; }
+      .pin-detail { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+      .chart-panel { padding: 14px 10px 8px; }
+      .legend { gap: 7px; font-size: 9px; }
+      .chart-head { display: block; }
+      .legend { margin-top: 12px; }
+      #scatter, #distributionChart, #controlChart { height: 310px; }
+      .filter-label { flex-basis: 100%; }
+      .range-arrow { display: none; }
+      .csv-tools-top { align-items: start; }
+      .selection-actions { gap: 5px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">P/</span><span>PINFIELD<small>PCB inspection workspace</small></span></div>
+    <div class="file-tools">
+      <div class="dataset-state"><span id="stateDot" class="state-dot"></span><span id="datasetState">Choose a dataset</span></div>
+      <button class="load-button" id="loadButton" type="button">Load CSV</button>
+      <input id="fileInput" type="file" accept=".csv,text/csv">
+    </div>
+  </header>
+  <main>
+    <div class="heading">
+      <div><p class="eyebrow">TE_10Pin_PCBSide / quality monitor</p><h1>Pin position inspection</h1></div>
+      <p class="heading-note">10-point connector · XY deviation in millimetres</p>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Data views">
+      <button class="tab" id="tabConfig" role="tab" aria-selected="true" aria-controls="viewConfig"><span class="tab-index">01</span> Main setup</button>
+      <button class="tab" id="tabPins" role="tab" aria-selected="false" aria-controls="viewPins"><span class="tab-index">02</span> Pin deviation</button>
+      <button class="tab" id="tabDistribution" role="tab" aria-selected="false" aria-controls="viewDistribution"><span class="tab-index">03</span> Histogram & distribution</button>
+      <button class="tab" id="tabControl" role="tab" aria-selected="false" aria-controls="viewControl"><span class="tab-index">04</span> Control chart</button>
+      <button class="tab" id="tabCsv" role="tab" aria-selected="false" aria-controls="viewCsv"><span class="tab-index">05</span> CSV explorer</button>
+    </nav>
+    <div id="notice" class="notice" role="status"></div>
+    <section class="filters" aria-label="Timestamp range">
+      <label class="filter-label">Product<select id="productSelect"></select></label>
+      <label class="filter-label">From <input id="timeFrom" type="datetime-local" step="1"></label>
+      <span class="range-arrow" aria-hidden="true">to</span>
+      <label class="filter-label">Through <input id="timeTo" type="datetime-local" step="1"></label>
+      <div class="filter-summary" id="rangeSummary">Load a CSV to begin</div>
+    </section>
+    <section id="viewPins" class="tab-content" role="tabpanel" aria-labelledby="tabPins">
+      <div class="workspace">
+        <aside class="panel connector-panel">
+          <p class="panel-kicker">Connector map · PCB side</p>
+          <h2 class="panel-title">Select a pin</h2>
+          <div id="connector" class="connector" aria-label="Ten-pin connector diagram"></div>
+          <div class="connector-caption"><span>2 rows × 5 positions</span><span>5 mm pitch</span></div>
+          <div class="pin-detail">
+            <div class="pin-detail-head"><span id="pinName" class="pin-name">Pin 01</span><span id="nominalChip" class="nominal-chip">origin 0, 0</span></div>
+            <div class="metric-row"><div class="metric"><span>Mean ΔX</span><strong id="meanX">—</strong></div><div class="metric"><span>Mean ΔY</span><strong id="meanY">—</strong></div><div class="metric"><span>In ±0.2</span><strong id="withinLimit">—</strong></div></div>
+          </div>
+        </aside>
+        <section class="panel chart-panel" aria-label="XY deviation scatter plot">
+          <div class="chart-head"><div><h2 class="chart-title" id="chartTitle">Pin 01 · XY displacement</h2><p class="chart-subtitle">Actual XY minus nominal XY · nominal position is the origin</p></div><div class="legend"><span class="legend-item"><i class="legend-dot"></i>Pass</span><span class="legend-item"><i class="legend-dot fail"></i>Fail</span><span class="legend-item"><i class="legend-ring"></i>±0.2 mm</span></div></div>
+          <div id="scatter" class="empty-chart">Load the inspection CSV to plot pin measurements.</div>
+        </section>
+      </div>
+    </section>
+    <section id="viewDistribution" class="tab-content" role="tabpanel" aria-labelledby="tabDistribution" hidden>
+      <div class="workspace">
+        <aside class="panel connector-panel">
+          <p class="panel-kicker">Distribution view</p>
+          <h2 class="panel-title">Pin histogram</h2>
+          <div id="distributionConnector" class="connector" aria-label="Connector diagram for distribution analysis"></div>
+          <div class="connector-caption"><span>Selected pin</span><span id="distributionPinLabel">Pin 01</span></div>
+          <div class="pin-detail">
+            <div class="pin-detail-head"><span id="distributionPinName" class="pin-name">Pin 01</span><span id="distributionStats" class="nominal-chip">0.000 mm</span></div>
+            <div class="metric-row"><div class="metric"><span>Mean |Δ|</span><strong id="distMean">—</strong></div><div class="metric"><span>Std dev</span><strong id="distStd">—</strong></div><div class="metric"><span>Range</span><strong id="distRange">—</strong></div></div>
+          </div>
+        </aside>
+        <section class="panel chart-panel">
+          <div class="chart-head"><div><h2 class="chart-title" id="distributionChartTitle">Pin 01 · deviation distribution</h2><p class="chart-subtitle">Histogram and XY spread of the selected pin</p></div></div>
+          <div id="distributionChart" class="empty-chart">Select a pin to inspect its distribution.</div>
+        </section>
+      </div>
+    </section>
+    <section id="viewControl" class="tab-content" role="tabpanel" aria-labelledby="tabControl" hidden>
+      <section class="panel chart-panel">
+        <div class="chart-head"><div><h2 class="chart-title">Control chart · selected pins</h2><p class="chart-subtitle">LCL and UCL are set on the main setup tab and scale the chart automatically</p></div></div>
+        <div id="controlPinList" class="pin-select" style="margin-top:12px; margin-bottom:14px;"></div>
+        <div id="controlChart" class="empty-chart">Load a CSV to inspect the control chart.</div>
+      </section>
+    </section>
+    <section id="viewConfig" class="tab-content" role="tabpanel" aria-labelledby="tabConfig" hidden>
+      <div class="workspace" style="grid-template-columns: 1.1fr 1.3fr;">
+        <section class="panel connector-panel" style="padding:18px;">
+          <p class="panel-kicker">Main setup</p>
+          <h2 class="panel-title">Connector and limits</h2>
+          <div class="pin-detail" style="padding-top:10px; margin-top:10px;">
+            <div style="display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px;">
+              <label class="filter-label" style="min-width:0;">Connector name<input id="connectorNameInput" type="text"></label>
+              <label class="filter-label" style="min-width:0;">Number of pins<input id="pinCountInput" type="number" min="1" max="100"></label>
+              <label class="filter-label" style="min-width:0;">Rows<input id="rowsInput" type="number" min="1" max="20"></label>
+              <label class="filter-label" style="min-width:0;">Columns<input id="colsInput" type="number" min="1" max="20"></label>
+              <label class="filter-label" style="min-width:0;">Pitch X (mm)<input id="pitchXInput" type="number" step="0.1"></label>
+              <label class="filter-label" style="min-width:0;">Pitch Y (mm)<input id="pitchYInput" type="number" step="0.1"></label>
+              <label class="filter-label" style="min-width:0;">Z nominal (mm)<input id="nominalZInput" type="number" step="0.1"></label>
+              <label class="filter-label" style="min-width:0;">Product preset<select id="productPresetSelect"></select></label>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:14px;">
+              <button id="applyGeometryButton" type="button" class="load-button">Apply geometry</button>
+              <button id="resetConfigButton" type="button" class="load-button" style="border-color:#dfe6df;">Reset</button>
+            </div>
+            <div style="margin-top: 18px; padding-top: 12px; border-top:1px solid var(--line);">
+              <p class="panel-kicker">Geometrical viewer</p>
+              <div id="geometryViewer" class="connector" style="margin: 12px 0 0;" aria-label="Editable connector geometry viewer"></div>
+            </div>
+          </div>
+        </section>
+        <section class="panel chart-panel" style="padding:18px;">
+          <p class="panel-kicker">Editable pin limits</p>
+          <h2 class="panel-title">Nominal / LCL / UCL</h2>
+          <div id="limitsTableContainer" style="margin-top: 16px; overflow:auto; max-height: 620px; border: 1px solid var(--line); border-radius: 6px;"></div>
+        </section>
+      </div>
+      <section class="panel chart-panel" style="margin-top:18px; padding:18px;">
+        <p class="panel-kicker">Data generator</p>
+        <h2 class="panel-title">Generate inspection CSV</h2>
+        <div style="display:grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; margin-top: 14px;">
+          <label class="filter-label">Distribution<select id="distributionSelect"><option value="normal">Normal</option><option value="uniform">Uniform</option><option value="triangular">Triangular</option></select></label>
+          <label class="filter-label">Randomness<select id="randomnessSelect"><option value="true">Enabled</option><option value="false">Fixed seed</option></select></label>
+          <label class="filter-label">Samples<input id="sampleCountInput" type="number" min="10" max="100000" step="10"></label>
+          <label class="filter-label">Warning tolerance (mm)<input id="warningToleranceInput" type="number" step="0.01"></label>
+          <label class="filter-label">OK tolerance (mm)<input id="okToleranceInput" type="number" step="0.01"></label>
+          <label class="filter-label">NOK tolerance (mm)<input id="nokToleranceInput" type="number" step="0.01"></label>
+          <label class="filter-label">Seed<input id="seedInput" type="number"></label>
+          <label class="filter-label">Output file<input id="outputNameInput" type="text" value="generated_pin_data.csv"></label>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;">
+          <button id="generateCsvButton" class="load-button" type="button">Generate CSV</button>
+          <a id="downloadCsvLink" class="load-button" href="#" style="display:none; text-decoration:none;">Download file</a>
+        </div>
+      </section>
+    </section>
+    <section id="viewCsv" class="tab-content" role="tabpanel" aria-labelledby="tabCsv" hidden>
+      <section class="panel csv-panel">
+        <div class="csv-tools">
+          <div class="csv-tools-top"><div><p class="panel-kicker">Filtered inspection records</p><h2 class="panel-title">CSV visualiser</h2></div><div class="selection-actions"><button class="text-button" id="selectAllPins" type="button">All pins</button><button class="text-button" id="clearPins" type="button">Clear</button></div></div>
+          <div id="pinSelect" class="pin-select" aria-label="Filter by connector pin"></div>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>Timestamp</th><th>Image</th><th>Result</th><th>Pin</th><th>Nominal X, Y, Z</th><th>Actual X, Y, Z</th><th>ΔX</th><th>ΔY</th><th>ΔZ</th></tr></thead><tbody id="tableBody"></tbody></table></div>
+        <div class="table-footer"><span id="tableCount">Load a CSV to view records</span><div class="pagination"><button class="page-button" id="prevPage" type="button" aria-label="Previous page">←</button><span id="pageNumber">—</span><button class="page-button" id="nextPage" type="button" aria-label="Next page">→</button></div></div>
+      </section>
+    </section>
+  </main>
+  <script>
+    const productPresets = {
+      TE_10Pin_PCBSide: { name: "TE_10Pin_PCBSide", pinCount: 10, rows: 2, cols: 5, pitchX: 5, pitchY: 5, nominalZ: 21, warningTolerance: 0.15, okTolerance: 0.1, nokTolerance: 0.25, distribution: "normal", randomness: true, samples: 1000 },
+      TE_20Pin_PCBSide: { name: "TE_20Pin_PCBSide", pinCount: 20, rows: 4, cols: 5, pitchX: 5, pitchY: 5, nominalZ: 21, warningTolerance: 0.15, okTolerance: 0.1, nokTolerance: 0.25, distribution: "normal", randomness: true, samples: 1000 },
+      Custom: { name: "Custom connector", pinCount: 10, rows: 2, cols: 5, pitchX: 5, pitchY: 5, nominalZ: 21, warningTolerance: 0.15, okTolerance: 0.1, nokTolerance: 0.25, distribution: "uniform", randomness: true, samples: 500 }
+    };
+
+    const state = {
+      rows: [],
+      headers: [],
+      selectedPin: 1,
+      selectedPins: new Set([1]),
+      controlPins: new Set([1, 2, 3, 4, 5]),
+      page: 0,
+      pageSize: 80,
+      filename: "",
+      product: "TE_10Pin_PCBSide",
+      config: {
+        productName: "TE_10Pin_PCBSide",
+        pinCount: 10,
+        rows: 2,
+        cols: 5,
+        pitchX: 5,
+        pitchY: 5,
+        nominalZ: 21,
+        warningTolerance: 0.15,
+        okTolerance: 0.1,
+        nokTolerance: 0.25,
+        distribution: "normal",
+        randomness: true,
+        samples: 1000,
+        seed: 42,
+        pins: []
+      }
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const padPin = (pin) => String(pin).padStart(2, "0");
+    const allPinNumbers = () => Array.from({ length: Math.max(1, state.config.pinCount) }, (_, index) => index + 1);
+
+    function createPinsFromGeometry() {
+      const pins = [];
+      const { pinCount, cols, pitchX, pitchY, nominalZ } = state.config;
+      for (let index = 1; index <= pinCount; index += 1) {
+        const row = Math.floor((index - 1) / cols);
+        const col = (index - 1) % cols;
+        const nominalX = col * pitchX;
+        const nominalY = row * pitchY;
+        pins.push({
+          id: index,
+          nominalX,
+          nominalY,
+          nominalZ,
+          lclX: -0.2,
+          uclX: 0.2,
+          lclY: -0.2,
+          uclY: 0.2,
+          lclZ: -0.2,
+          uclZ: 0.2
+        });
+      }
+      state.config.pins = pins;
+      if (!state.selectedPins.size) state.selectedPins = new Set([1]);
+      else state.selectedPins = new Set(Array.from(state.selectedPins).filter((pin) => pin <= pinCount));
+      if (!state.controlPins.size) state.controlPins = new Set([1]);
+      else state.controlPins = new Set(Array.from(state.controlPins).filter((pin) => pin <= pinCount));
+      if (!state.selectedPin || state.selectedPin > pinCount) state.selectedPin = 1;
+      if (!state.controlPins.size) state.controlPins = new Set([1, 2].slice(0, Math.min(2, pinCount)));
+    }
+
+    function updateHeaderText() {
+      const connectorName = state.config.productName || state.product || "TE_10Pin_PCBSide";
+      const pinCount = state.config.pinCount || 1;
+      const eyebrow = document.querySelector(".eyebrow");
+      const headingNote = document.querySelector(".heading-note");
+      if (eyebrow) eyebrow.textContent = `${connectorName} / quality monitor`;
+      if (headingNote) headingNote.textContent = `${pinCount}-point connector · XY deviation in millimetres`;
+    }
+
+    function syncConfigInputs() {
+      $("connectorNameInput").value = state.config.productName;
+      $("pinCountInput").value = state.config.pinCount;
+      $("rowsInput").value = state.config.rows;
+      $("colsInput").value = state.config.cols;
+      $("pitchXInput").value = state.config.pitchX;
+      $("pitchYInput").value = state.config.pitchY;
+      $("nominalZInput").value = state.config.nominalZ;
+      $("warningToleranceInput").value = state.config.warningTolerance;
+      $("okToleranceInput").value = state.config.okTolerance;
+      $("nokToleranceInput").value = state.config.nokTolerance;
+      $("distributionSelect").value = state.config.distribution;
+      $("randomnessSelect").value = state.config.randomness ? "true" : "false";
+      $("sampleCountInput").value = state.config.samples;
+      $("seedInput").value = state.config.seed;
+      $("productPresetSelect").value = state.product;
+      $("productSelect").value = state.product;
+      updateHeaderText();
+      renderGeometryViewer();
+      renderLimitsTable();
+      renderControlPinSelector();
+    }
+
+    function refreshAllViews() {
+      renderPinSelector();
+      renderControlPinSelector();
+      renderConnector("connector", state.selectedPin, () => {
+        renderPinView();
+        renderDistributionView();
+      });
+      renderConnector("distributionConnector", state.selectedPin, () => {
+        renderDistributionView();
+      });
+      renderPinView();
+      renderDistributionView();
+      renderControlChart();
+      renderTable();
+    }
+
+    function formatNumber(number) {
+      if (!Number.isFinite(number)) return "—";
+      return number.toFixed(3);
+    }
+
+    function localDateStringForInput(date) {
+      const pad = (value) => String(value).padStart(2, "0");
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+    }
+
+    function parseSemicolonCsv(text) {
+      const rows = [];
+      let current = [];
+      let value = "";
+      let inQuotes = false;
+      for (let index = 0; index < text.length; index += 1) {
+        const char = text[index];
+        if (char === '"') {
+          if (inQuotes && text[index + 1] === '"') {
+            value += '"';
+            index += 1;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (char === ';' && !inQuotes) {
+          current.push(value);
+          value = "";
+        } else if ((char === "\n" || char === "\r") && !inQuotes) {
+          if (char === "\r" && text[index + 1] === "\n") index += 1;
+          current.push(value);
+          if (current.some((entry) => entry !== "")) rows.push(current);
+          current = [];
+          value = "";
+        } else {
+          value += char;
+        }
+      }
+      if (value.length || current.length) {
+        current.push(value);
+        rows.push(current);
+      }
+      return rows;
+    }
+
+    function currentRangeRows() {
+      const fromValue = $("timeFrom").value;
+      const toValue = $("timeTo").value;
+      const from = fromValue ? new Date(fromValue).getTime() : -Infinity;
+      const through = toValue ? new Date(toValue).getTime() : Infinity;
+      return state.rows.filter((row) => {
+        const timestamp = new Date(row.Timestamp).getTime();
+        return Number.isFinite(timestamp) && timestamp >= from && timestamp <= through;
+      });
+    }
+
+    function loadCsvText(text, filename) {
+      const parsed = parseSemicolonCsv(text.replace(/^\uFEFF/, ""));
+      if (parsed.length < 2) throw new Error("The selected file has no data rows.");
+      const headers = parsed[0].map((header) => header.trim());
+      const allPins = allPinNumbers();
+      const needed = [
+        "ImageName", "Timestamp", "Result",
+        ...allPins.flatMap((pin) => {
+          const suffix = padPin(pin);
+          return [
+            `NomPin${suffix}X`, `NomPin${suffix}Y`, `NomPin${suffix}Z`,
+            `ActPin${suffix}X`, `ActPin${suffix}Y`, `ActPin${suffix}Z`
+          ];
+        })
+      ];
+      const missing = needed.filter((header) => !headers.includes(header));
+      if (missing.length) {
+        throw new Error(`Missing expected dataset columns: ${missing.slice(0, 3).join(", ")}${missing.length > 3 ? "…" : ""}`);
+      }
+      state.headers = headers;
+      state.rows = parsed.slice(1)
+        .filter((record) => record.length === headers.length)
+        .map((record) => Object.fromEntries(headers.map((header, index) => [header, record[index]])));
+      if (!state.rows.length) throw new Error("No complete CSV rows were found.");
+      const dates = state.rows.map((row) => new Date(row.Timestamp)).filter((date) => Number.isFinite(date.getTime())).sort((a, b) => a.getTime() - b.getTime());
+      if (!dates.length) throw new Error("No valid timestamps were found in the CSV.");
+      $("timeFrom").value = localDateStringForInput(dates[0]);
+      $("timeTo").value = localDateStringForInput(dates[dates.length - 1]);
+      state.filename = filename;
+      $("datasetState").textContent = `${filename} · ${state.rows.length.toLocaleString()} rows`;
+      $("stateDot").classList.add("ready");
+      $("notice").classList.remove("visible");
+      renderPinSelector();
+      renderControlPinSelector();
+      renderPinView();
+      renderDistributionView();
+      renderControlChart();
+      renderTable();
+      populateProductSelect();
+    }
+
+    function showError(message) {
+      $("notice").textContent = message;
+      $("notice").classList.add("visible");
+    }
+
+    function renderConnector(targetId, selectedPin = state.selectedPin, callback) {
+      const container = $(targetId);
+      const pinSet = allPinNumbers();
+      container.replaceChildren(...pinSet.map((pin) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "pin-button";
+        button.textContent = padPin(pin);
+        button.setAttribute("aria-label", `Select pin ${padPin(pin)}`);
+        button.setAttribute("aria-pressed", String(pin === selectedPin));
+        button.addEventListener("click", () => {
+          state.selectedPin = pin;
+          callback?.(pin);
+        });
+        return button;
+      }));
+    }
+
+    function getPinDeviationValues(pinNumber, key = "XY") {
+      const suffix = padPin(pinNumber);
+      const rows = currentRangeRows();
+      const values = rows.map((row) => {
+        const dx = Number(row[`ActPin${suffix}X`]) - Number(row[`NomPin${suffix}X`]);
+        const dy = Number(row[`ActPin${suffix}Y`]) - Number(row[`NomPin${suffix}Y`]);
+        const dz = Number(row[`ActPin${suffix}Z`]) - Number(row[`NomPin${suffix}Z`]);
+        if (key === "X") return dx;
+        if (key === "Y") return dy;
+        if (key === "Z") return dz;
+        return Math.hypot(dx, dy);
+      }).filter(Number.isFinite);
+      return values;
+    }
+
+    function renderPinView() {
+      renderConnector("connector", state.selectedPin, () => {
+        renderPinView();
+        renderDistributionView();
+      });
+      const rows = currentRangeRows();
+      const pin = state.selectedPin;
+      const suffix = padPin(pin);
+      const row0 = state.rows[0] || {};
+      const nominalX = Number(row0[`NomPin${suffix}X`] ?? 0);
+      const nominalY = Number(row0[`NomPin${suffix}Y`] ?? 0);
+      $("pinName").textContent = `Pin ${suffix}`;
+      $("chartTitle").textContent = `Pin ${suffix} · XY displacement`;
+      $("nominalChip").textContent = `origin ${formatNumber(nominalX)}, ${formatNumber(nominalY)}`;
+      const dxValues = getPinDeviationValues(pin, "X");
+      const dyValues = getPinDeviationValues(pin, "Y");
+      const mean = (values) => values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : NaN;
+      const inside = rows.filter((row) => {
+        const dX = Number(row[`ActPin${suffix}X`]) - Number(row[`NomPin${suffix}X`]);
+        const dY = Number(row[`ActPin${suffix}Y`]) - Number(row[`NomPin${suffix}Y`]);
+        return Math.abs(dX) <= 0.2 && Math.abs(dY) <= 0.2;
+      }).length;
+      $("meanX").textContent = formatNumber(mean(dxValues));
+      $("meanY").textContent = formatNumber(mean(dyValues));
+      $("withinLimit").textContent = rows.length ? `${Math.round((inside / rows.length) * 100)}%` : "—";
+      $("rangeSummary").innerHTML = `<strong>${rows.length.toLocaleString()}</strong> images in range`;
+      if (!rows.length || typeof Plotly === "undefined") {
+        $("scatter").className = "empty-chart";
+        $("scatter").textContent = typeof Plotly === "undefined" ? "Plot library did not load. Check the network connection and reload." : "No measurements in this timestamp range.";
+        return;
+      }
+      $("scatter").className = "";
+      const passRows = rows.filter((row) => {
+        const dX = Number(row[`ActPin${suffix}X`]) - Number(row[`NomPin${suffix}X`]);
+        const dY = Number(row[`ActPin${suffix}Y`]) - Number(row[`NomPin${suffix}Y`]);
+        return Math.abs(dX) <= 0.2 && Math.abs(dY) <= 0.2 && row.Result !== "FAIL";
+      });
+      const failRows = rows.filter((row) => {
+        const dX = Number(row[`ActPin${suffix}X`]) - Number(row[`NomPin${suffix}X`]);
+        const dY = Number(row[`ActPin${suffix}Y`]) - Number(row[`NomPin${suffix}Y`]);
+        return !((Math.abs(dX) <= 0.2 && Math.abs(dY) <= 0.2) || row.Result !== "FAIL");
+      });
+      const passTrace = {
+        type: "scatter", mode: "markers", name: "Pass",
+        x: passRows.map((row) => Number(row[`ActPin${suffix}X`]) - Number(row[`NomPin${suffix}X`])),
+        y: passRows.map((row) => Number(row[`ActPin${suffix}Y`]) - Number(row[`NomPin${suffix}Y`])),
+        text: passRows.map((row) => `${row.ImageName}<br>${row.Timestamp}`),
+        marker: { size: 7, color: "#176c54", opacity: 0.85 },
+        hovertemplate: "%{text}<br>ΔX %{x:.3f} mm<br>ΔY %{y:.3f} mm<extra></extra>"
+      };
+      const failTrace = {
+        type: "scatter", mode: "markers", name: "Fail",
+        x: failRows.map((row) => Number(row[`ActPin${suffix}X`]) - Number(row[`NomPin${suffix}X`])),
+        y: failRows.map((row) => Number(row[`ActPin${suffix}Y`]) - Number(row[`NomPin${suffix}Y`])),
+        text: failRows.map((row) => `${row.ImageName}<br>${row.Timestamp}`),
+        marker: { size: 7, color: "#d86650", opacity: 0.9 },
+        hovertemplate: "%{text}<br>ΔX %{x:.3f} mm<br>ΔY %{y:.3f} mm<extra></extra>"
+      };
+      const values = rows.flatMap((row) => [
+        Math.abs(Number(row[`ActPin${suffix}X`]) - Number(row[`NomPin${suffix}X`])),
+        Math.abs(Number(row[`ActPin${suffix}Y`]) - Number(row[`NomPin${suffix}Y`]))
+      ]).filter(Number.isFinite);
+      const bounds = Math.max(0.4, ...values, 0.2) * 1.2;
+      const layout = {
+        margin: { l: 48, r: 16, t: 12, b: 42 },
+        paper_bgcolor: "#fffefa", plot_bgcolor: "#fffefa",
+        showlegend: false,
+        xaxis: { title: "ΔX (mm)", range: [-bounds, bounds], zeroline: true, zerolinecolor: "#73817c", zerolinewidth: 1, gridcolor: "#e7ebe5" },
+        yaxis: { title: "ΔY (mm)", range: [-bounds, bounds], zeroline: true, zerolinecolor: "#73817c", zerolinewidth: 1, gridcolor: "#e7ebe5", scaleanchor: "x", scaleratio: 1 },
+        shapes: [{ type: "circle", xref: "x", yref: "y", x0: -0.2, y0: -0.2, x1: 0.2, y1: 0.2, line: { color: "#d7a445", width: 1.5, dash: "dash" } }],
+        font: { family: "DM Mono, Consolas, monospace", size: 10, color: "#73817c" }
+      };
+      Plotly.react("scatter", [passTrace, failTrace], layout, { responsive: true, displaylogo: false, modeBarButtonsToRemove: ["lasso2d", "select2d"] });
+    }
+
+    function renderDistributionView() {
+      renderConnector("distributionConnector", state.selectedPin, () => {
+        renderDistributionView();
+      });
+      const pin = state.selectedPin;
+      const suffix = padPin(pin);
+      const rows = currentRangeRows();
+      const dxValues = rows.map((row) => Number(row[`ActPin${suffix}X`]) - Number(row[`NomPin${suffix}X`])).filter(Number.isFinite);
+      const dyValues = rows.map((row) => Number(row[`ActPin${suffix}Y`]) - Number(row[`NomPin${suffix}Y`])).filter(Number.isFinite);
+      const radial = dxValues.map((value, index) => Math.hypot(value, dyValues[index] ?? 0));
+      const mean = (values) => values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : NaN;
+      const std = (values) => {
+        if (!values.length) return NaN;
+        const avg = mean(values);
+        return Math.sqrt(values.reduce((sum, value) => sum + ((value - avg) ** 2), 0) / values.length);
+      };
+      const minValue = radial.length ? Math.min(...radial) : 0;
+      const maxValue = radial.length ? Math.max(...radial) : 0;
+      $("distributionPinLabel").textContent = `Pin ${suffix}`;
+      $("distributionPinName").textContent = `Pin ${suffix}`;
+      $("distributionStats").textContent = `${formatNumber(mean(radial))} mm`;
+      $("distMean").textContent = formatNumber(mean(radial));
+      $("distStd").textContent = formatNumber(std(radial));
+      $("distRange").textContent = `${formatNumber(minValue)} → ${formatNumber(maxValue)}`;
+      $("distributionChartTitle").textContent = `Pin ${suffix} · deviation distribution`;
+      if (!rows.length || !radial.length || typeof Plotly === "undefined") {
+        $("distributionChart").className = "empty-chart";
+        $("distributionChart").textContent = typeof Plotly === "undefined" ? "Plot library did not load. Check the network connection and reload." : "No measurements in this timestamp range.";
+        return;
+      }
+      $("distributionChart").className = "";
+      const histogramTrace = {
+        type: "histogram",
+        x: radial,
+        nbinsx: 18,
+        name: "Radial deviation",
+        marker: { color: "#176c54", opacity: 0.7 }
+      };
+      const scatterTrace = {
+        type: "scatter",
+        mode: "markers",
+        name: "XY spread",
+        x: dxValues,
+        y: dyValues,
+        marker: { size: 7, color: "#d7a445", opacity: 0.8 },
+        hovertemplate: "ΔX %{x:.3f} mm<br>ΔY %{y:.3f} mm<extra></extra>"
+      };
+      const layout = {
+        margin: { l: 48, r: 16, t: 12, b: 42 },
+        paper_bgcolor: "#fffefa", plot_bgcolor: "#fffefa",
+        showlegend: false,
+        xaxis: { title: "Radial deviation (mm)", range: [0, Math.max(0.5, maxValue * 1.5)] },
+        yaxis: { title: "Frequency" },
+        font: { family: "DM Mono, Consolas, monospace", size: 10, color: "#73817c" }
+      };
+      Plotly.react("distributionChart", [histogramTrace, scatterTrace], layout, { responsive: true, displaylogo: false, modeBarButtonsToRemove: ["lasso2d", "select2d"] });
+    }
+
+    function renderControlPinSelector() {
+      const pinValues = allPinNumbers();
+      $("controlPinList").replaceChildren(...pinValues.map((pin) => {
+        const label = document.createElement("label");
+        label.className = "pin-check";
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.value = String(pin);
+        input.checked = state.controlPins.has(pin);
+        input.addEventListener("change", () => {
+          if (input.checked) state.controlPins.add(pin);
+          else state.controlPins.delete(pin);
+          renderControlChart();
+        });
+        const span = document.createElement("span");
+        span.textContent = `Pin ${padPin(pin)}`;
+        label.append(input, span);
+        return label;
+      }));
+    }
+
+    function renderControlChart() {
+      const rows = currentRangeRows();
+      const selectedPins = [...state.controlPins].sort((a, b) => a - b);
+      if (!rows.length || !selectedPins.length || typeof Plotly === "undefined") {
+        $("controlChart").className = "empty-chart";
+        $("controlChart").textContent = typeof Plotly === "undefined" ? "Plot library did not load. Check the network connection and reload." : "Load a CSV to inspect the control chart.";
+        return;
+      }
+      $("controlChart").className = "";
+      const colors = ["#176c54", "#264653", "#d7a445", "#d86650", "#5142af", "#2a9d8f", "#e76f51", "#6096ba", "#7f7f7f", "#b95d5d"];
+      const traces = selectedPins.map((pin, index) => {
+        const suffix = padPin(pin);
+        const yValues = rows.map((row) => {
+          const dx = Number(row[`ActPin${suffix}X`]) - Number(row[`NomPin${suffix}X`]);
+          const dy = Number(row[`ActPin${suffix}Y`]) - Number(row[`NomPin${suffix}Y`]);
+          return Math.hypot(dx, dy);
+        });
+        return {
+          type: "scatter",
+          mode: "lines+markers",
+          name: `Pin ${suffix}`,
+          x: rows.map((row) => row.Timestamp),
+          y: yValues,
+          line: { color: colors[index % colors.length], width: 2 },
+          marker: { size: 4 },
+          hovertemplate: `%{x}<br>Pin ${suffix}: %{y:.3f} mm<extra></extra>`
+        };
+      });
+      const limitValues = selectedPins.flatMap((pin) => {
+        const configPin = state.config.pins.find((entry) => entry.id === pin) || { lclX: -0.2, uclX: 0.2, lclY: -0.2, uclY: 0.2 };
+        return [Math.min(configPin.lclX, configPin.lclY), Math.max(configPin.uclX, configPin.uclY)];
+      });
+      const allTraceValues = traces.flatMap((trace) => trace.y);
+      const minY = Math.min(...limitValues, ...allTraceValues, -0.3);
+      const maxY = Math.max(...limitValues, ...allTraceValues, 0.3);
+      const padding = Math.max(0.05, (maxY - minY) * 0.15 || 0.05);
+      const layout = {
+        margin: { l: 50, r: 12, t: 20, b: 45 },
+        paper_bgcolor: "#fffefa", plot_bgcolor: "#fffefa",
+        xaxis: { title: "Timestamp", type: "date" },
+        yaxis: { title: "Radial deviation (mm)", range: [Math.min(minY, -0.3) - padding, Math.max(maxY, 0.3) + padding] },
+        shapes: selectedPins.map((pin) => {
+          const configPin = state.config.pins.find((entry) => entry.id === pin) || { lclX: -0.2, uclX: 0.2, lclY: -0.2, uclY: 0.2 };
+          const lclValue = Math.min(configPin.lclX, configPin.lclY);
+          const uclValue = Math.max(configPin.uclX, configPin.uclY);
+          return [
+            { type: "line", yref: "y", xref: "paper", x0: 0, x1: 1, y0: lclValue, y1: lclValue, line: { color: "#d7a445", dash: "dash", width: 1.2 } },
+            { type: "line", yref: "y", xref: "paper", x0: 0, x1: 1, y0: uclValue, y1: uclValue, line: { color: "#d86650", dash: "dash", width: 1.2 } }
+          ];
+        }).flat(),
+        font: { family: "DM Mono, Consolas, monospace", size: 10, color: "#73817c" },
+        legend: { orientation: "h", x: 0, y: 1.2 }
+      };
+      Plotly.react("controlChart", traces, layout, { responsive: true, displaylogo: false, modeBarButtonsToRemove: ["lasso2d", "select2d"] });
+    }
+
+    function renderLimitsTable() {
+      const container = $("limitsTableContainer");
+      if (!state.config.pins.length) {
+        container.innerHTML = "<div style='padding:16px;color:#73817c;'>Configure the connector to show editable pin limits.</div>";
+        return;
+      }
+      const table = document.createElement("table");
+      table.style.width = "100%";
+      table.style.borderCollapse = "collapse";
+      const thead = document.createElement("thead");
+      thead.innerHTML = `
+        <tr>
+          <th style="padding:10px 8px; text-align:left;">Pin</th>
+          <th style="padding:10px 8px; text-align:left;">Nom X</th>
+          <th style="padding:10px 8px; text-align:left;">Nom Y</th>
+          <th style="padding:10px 8px; text-align:left;">Nom Z</th>
+          <th style="padding:10px 8px; text-align:left;">LCL</th>
+          <th style="padding:10px 8px; text-align:left;">UCL</th>
+        </tr>
+      `;
+      const body = document.createElement("tbody");
+      state.config.pins.forEach((pin) => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td style="padding:8px; border-top:1px solid #edf0ea; font-family: var(--mono);">${pin.id}</td>
+          <td style="padding:8px; border-top:1px solid #edf0ea;"><input data-pin="${pin.id}" data-field="nominalX" type="number" step="0.1" value="${pin.nominalX}" style="width:72px; padding:5px 6px; border:1px solid var(--line); border-radius:4px;" /></td>
+          <td style="padding:8px; border-top:1px solid #edf0ea;"><input data-pin="${pin.id}" data-field="nominalY" type="number" step="0.1" value="${pin.nominalY}" style="width:72px; padding:5px 6px; border:1px solid var(--line); border-radius:4px;" /></td>
+          <td style="padding:8px; border-top:1px solid #edf0ea;"><input data-pin="${pin.id}" data-field="nominalZ" type="number" step="0.1" value="${pin.nominalZ}" style="width:72px; padding:5px 6px; border:1px solid var(--line); border-radius:4px;" /></td>
+          <td style="padding:8px; border-top:1px solid #edf0ea;"><input data-pin="${pin.id}" data-field="lclX" type="number" step="0.1" value="${pin.lclX}" style="width:72px; padding:5px 6px; border:1px solid var(--line); border-radius:4px;" /></td>
+          <td style="padding:8px; border-top:1px solid #edf0ea;"><input data-pin="${pin.id}" data-field="uclX" type="number" step="0.1" value="${pin.uclX}" style="width:72px; padding:5px 6px; border:1px solid var(--line); border-radius:4px;" /></td>
+        `;
+        body.appendChild(row);
+      });
+      table.append(thead, body);
+      container.replaceChildren(table);
+      table.querySelectorAll("input").forEach((input) => {
+        input.addEventListener("input", (event) => {
+          const target = event.target;
+          const pinId = Number(target.dataset.pin);
+          const pin = state.config.pins.find((entry) => entry.id === pinId);
+          if (!pin) return;
+          const field = target.dataset.field;
+          pin[field] = Number(target.value);
+          renderGeometryViewer();
+          renderControlChart();
+        });
+      });
+    }
+
+    function renderGeometryViewer() {
+      const container = $("geometryViewer");
+      const { cols } = state.config;
+      container.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+      container.replaceChildren(...Array.from({ length: state.config.pinCount }, (_, index) => {
+        const button = document.createElement("button");
+        const pin = state.config.pins[index] || { id: index + 1 };
+        button.type = "button";
+        button.className = "pin-button";
+        button.style.width = "100%";
+        button.textContent = padPin(pin.id);
+        button.setAttribute("aria-label", `Pin ${padPin(pin.id)}`);
+        button.setAttribute("aria-pressed", String(pin.id === state.selectedPin));
+        button.addEventListener("click", () => {
+          state.selectedPin = pin.id;
+          renderPinView();
+          renderDistributionView();
+        });
+        return button;
+      }));
+    }
+
+    function populateProductSelect() {
+      const options = Object.keys(productPresets).map((product) => `<option value="${product}">${product}</option>`).join("");
+      $("productSelect").innerHTML = options;
+      $("productPresetSelect").innerHTML = options;
+      $("productSelect").value = state.product || "TE_10Pin_PCBSide";
+      $("productPresetSelect").value = state.product || "TE_10Pin_PCBSide";
+    }
+
+    function renderPinSelector() {
+      const container = $("pinSelect");
+      const visiblePins = allPinNumbers();
+      container.replaceChildren(...visiblePins.map((pin) => {
+        const label = document.createElement("label");
+        label.className = "pin-check";
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.value = String(pin);
+        input.checked = state.selectedPins.has(pin);
+        input.addEventListener("change", () => {
+          if (input.checked) state.selectedPins.add(pin);
+          else state.selectedPins.delete(pin);
+          state.page = 0;
+          renderTable();
+        });
+        const span = document.createElement("span");
+        span.textContent = `Pin ${padPin(pin)}`;
+        label.append(input, span);
+        return label;
+      }));
+    }
+
+    function renderTable() {
+      const records = currentRangeRows().flatMap((row) => [...state.selectedPins].map((pin) => ({ row, pin }))).sort((a, b) => new Date(a.row.Timestamp) - new Date(b.row.Timestamp) || a.pin - b.pin);
+      const pageCount = Math.max(1, Math.ceil(records.length / state.pageSize));
+      state.page = Math.min(state.page, pageCount - 1);
+      const start = state.page * state.pageSize;
+      const visible = records.slice(start, start + state.pageSize);
+      const tableBody = $("tableBody");
+      tableBody.replaceChildren(...visible.map(({ row, pin }) => {
+        const suffix = padPin(pin);
+        const x = Number(row[`ActPin${suffix}X`]) - Number(row[`NomPin${suffix}X`]);
+        const y = Number(row[`ActPin${suffix}Y`]) - Number(row[`NomPin${suffix}Y`]);
+        const z = Number(row[`ActPin${suffix}Z`]) - Number(row[`NomPin${suffix}Z`]);
+        const tr = document.createElement("tr");
+        const cells = [
+          row.Timestamp,
+          row.ImageName,
+          row.Result,
+          `Pin ${suffix}`,
+          `${row[`NomPin${suffix}X`]}, ${row[`NomPin${suffix}Y`]}, ${row[`NomPin${suffix}Z`]}`,
+          `${row[`ActPin${suffix}X`]}, ${row[`ActPin${suffix}Y`]}, ${row[`ActPin${suffix}Z`]}`,
+          formatNumber(x),
+          formatNumber(y),
+          formatNumber(z)
+        ];
+        cells.forEach((value, index) => {
+          const td = document.createElement("td");
+          if (index === 2) {
+            const badge = document.createElement("span");
+            badge.className = `result${value === "FAIL" || value === "NOK" ? " fail" : ""}`;
+            badge.textContent = value;
+            td.append(badge);
+          } else {
+            td.textContent = value;
+            if (index >= 6 && Math.abs(Number(value)) > 0.2) td.className = "delta-fail";
+          }
+          tr.append(td);
+        });
+        return tr;
+      }));
+      $("tableCount").textContent = records.length ? `Showing ${start + 1}–${Math.min(start + state.pageSize, records.length)} of ${records.length.toLocaleString()} pin records` : "No records match this pin and timestamp selection";
+      $("pageNumber").textContent = `${state.page + 1} / ${pageCount}`;
+      $("prevPage").disabled = state.page === 0;
+      $("nextPage").disabled = state.page >= pageCount - 1;
+    }
+
+    function makeGeneratorCsv() {
+      const { pinCount, cols, pitchX, pitchY, nominalZ, distribution, randomness, samples, okTolerance, warningTolerance, nokTolerance, seed, pins } = state.config;
+      const generatedPins = pins.length ? pins : Array.from({ length: pinCount }, (_, index) => ({
+        id: index + 1,
+        nominalX: (index % cols) * pitchX,
+        nominalY: Math.floor(index / cols) * pitchY,
+        nominalZ,
+        lclX: -0.2,
+        uclX: 0.2,
+        lclY: -0.2,
+        uclY: 0.2,
+        lclZ: -0.2,
+        uclZ: 0.2
+      }));
+      const header = ["ImageName", "Timestamp", "Result", "ImageLength", "ImageWidth"];
+      for (let pin = 1; pin <= pinCount; pin += 1) {
+        header.push(`NomPin${padPin(pin)}X`, `NomPin${padPin(pin)}Y`, `NomPin${padPin(pin)}Z`);
+      }
+      for (let pin = 1; pin <= pinCount; pin += 1) {
+        header.push(`ActPin${padPin(pin)}X`, `ActPin${padPin(pin)}Y`, `ActPin${padPin(pin)}Z`);
+      }
+      const rowsOut = [header];
+      const randomSource = randomness ? Math.random : (() => {
+        let value = seed ?? 42;
+        return () => {
+          value = (value * 1664525 + 1013904223) % 4294967296;
+          return value / 4294967296;
+        };
+      })();
+      const sampleFunction = (mode) => {
+        const rand = randomSource();
+        if (mode === "normal") {
+          const a = randomSource();
+          const b = randomSource();
+          return Math.sqrt(-2 * Math.log(a || 0.0001)) * Math.cos(2 * Math.PI * (b || 0.0001));
+        }
+        if (mode === "uniform") return (rand - 0.5) * 2;
+        if (mode === "triangular") {
+          const u1 = randomSource();
+          const u2 = randomSource();
+          return (u1 + u2 - 1) * 1.5;
+        }
+        return 0;
+      };
+      const start = new Date();
+      for (let imageIndex = 1; imageIndex <= samples; imageIndex += 1) {
+        const timestamp = new Date(start.getTime() + imageIndex * 1000).toISOString();
+        const row = [
+          `TE_10Pin_PCBSide_Image_${String(imageIndex).padStart(3, "0")}`,
+          timestamp,
+          "PASS",
+          "100",
+          "50"
+        ];
+        const nominalValues = [];
+        const actualValues = [];
+        let maxDeviation = 0;
+        generatedPins.forEach((pin) => {
+          nominalValues.push(pin.nominalX, pin.nominalY, pin.nominalZ);
+          const dx = sampleFunction(distribution) * warningTolerance;
+          const dy = sampleFunction(distribution) * warningTolerance;
+          const dz = sampleFunction(distribution) * (warningTolerance * 0.6);
+          const actualX = pin.nominalX + dx;
+          const actualY = pin.nominalY + dy;
+          const actualZ = pin.nominalZ + dz;
+          actualValues.push(actualX, actualY, actualZ);
+          maxDeviation = Math.max(maxDeviation, Math.abs(dx), Math.abs(dy), Math.abs(dz));
+        });
+        row.push(...nominalValues, ...actualValues);
+        row[2] = maxDeviation <= okTolerance ? "PASS" : maxDeviation <= warningTolerance ? "WARN" : maxDeviation <= nokTolerance ? "NOK" : "FAIL";
+        rowsOut.push(row);
+      }
+      return rowsOut;
+    }
+
+    function generateCsvFile() {
+      const rowsOut = makeGeneratorCsv();
+      const csvText = rowsOut.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(";")).join("\n");
+      const blob = new Blob([csvText], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = $("downloadCsvLink");
+      link.href = url;
+      const outputName = $("outputNameInput").value || "generated_pin_data.csv";
+      link.download = outputName;
+      link.style.display = "inline-flex";
+      link.textContent = `Download ${outputName}`;
+      $("notice").textContent = `Generated ${outputName} successfully.`;
+      $("notice").classList.add("visible");
+      return csvText;
+    }
+
+    function applyPreset(productKey) {
+      const preset = productPresets[productKey] || productPresets.TE_10Pin_PCBSide;
+      state.product = productKey;
+      state.config = {
+        ...state.config,
+        productName: preset.name,
+        pinCount: preset.pinCount,
+        rows: preset.rows,
+        cols: preset.cols,
+        pitchX: preset.pitchX,
+        pitchY: preset.pitchY,
+        nominalZ: preset.nominalZ,
+        warningTolerance: preset.warningTolerance,
+        okTolerance: preset.okTolerance,
+        nokTolerance: preset.nokTolerance,
+        distribution: preset.distribution,
+        randomness: preset.randomness,
+        samples: preset.samples,
+        seed: 42
+      };
+      createPinsFromGeometry();
+      syncConfigInputs();
+    }
+
+    $("loadButton").addEventListener("click", () => $("fileInput").click());
+    $("fileInput").addEventListener("change", (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+      file.text().then((text) => loadCsvText(text, file.name)).catch((error) => showError(error.message || error));
+    });
+    ["timeFrom", "timeTo"].forEach((id) => $(id).addEventListener("change", () => {
+      state.page = 0; renderPinView(); renderDistributionView(); renderControlChart(); renderTable();
+    }));
+    ["tabConfig", "tabPins", "tabDistribution", "tabControl", "tabCsv"].forEach((tabId) => {
+      const tab = $(tabId);
+      tab.addEventListener("click", () => {
+        const tabs = ["tabConfig", "tabPins", "tabDistribution", "tabControl", "tabCsv"];
+        tabs.forEach((id) => {
+          const element = $(id);
+          const panel = $(id.replace("tab", "view"));
+          const isSelected = id === tabId;
+          element.setAttribute("aria-selected", String(isSelected));
+          if (panel) panel.hidden = !isSelected;
+        });
+        if (tabId === "tabConfig") {
+          renderGeometryViewer();
+          renderLimitsTable();
+        }
+        if (tabId === "tabPins") renderPinView();
+        if (tabId === "tabDistribution") renderDistributionView();
+        if (tabId === "tabControl") renderControlChart();
+        if (tabId === "tabCsv") renderTable();
+      });
+    });
+    $("selectAllPins").addEventListener("click", () => { state.selectedPins = new Set(allPinNumbers()); state.page = 0; renderPinSelector(); renderTable(); });
+    $("clearPins").addEventListener("click", () => { state.selectedPins.clear(); state.page = 0; renderPinSelector(); renderTable(); });
+    $("prevPage").addEventListener("click", () => { state.page = Math.max(0, state.page - 1); renderTable(); });
+    $("nextPage").addEventListener("click", () => { state.page += 1; renderTable(); });
+    function applyGeometryFromInputs() {
+      state.config.productName = $("connectorNameInput").value || state.config.productName;
+      state.config.pinCount = Number($("pinCountInput").value) || state.config.pinCount;
+      state.config.rows = Number($("rowsInput").value) || state.config.rows;
+      state.config.cols = Number($("colsInput").value) || state.config.cols;
+      state.config.pitchX = Number($("pitchXInput").value) || state.config.pitchX;
+      state.config.pitchY = Number($("pitchYInput").value) || state.config.pitchY;
+      state.config.nominalZ = Number($("nominalZInput").value) || state.config.nominalZ;
+      createPinsFromGeometry();
+      syncConfigInputs();
+      refreshAllViews();
+    }
+
+    $("applyGeometryButton").addEventListener("click", applyGeometryFromInputs);
+    ["connectorNameInput", "pinCountInput", "rowsInput", "colsInput", "pitchXInput", "pitchYInput", "nominalZInput"].forEach((id) => {
+      $(id).addEventListener("input", applyGeometryFromInputs);
+    });
+    $("resetConfigButton").addEventListener("click", () => {
+      state.product = "TE_10Pin_PCBSide";
+      applyPreset("TE_10Pin_PCBSide");
+      renderPinSelector();
+      renderControlPinSelector();
+      renderPinView();
+      renderDistributionView();
+      renderControlChart();
+    });
+    function applyGeneratorFromInputs() {
+      state.config.distribution = $("distributionSelect").value;
+      state.config.randomness = $("randomnessSelect").value === "true";
+      state.config.samples = Number($("sampleCountInput").value) || 1000;
+      state.config.warningTolerance = Number($("warningToleranceInput").value) || 0.15;
+      state.config.okTolerance = Number($("okToleranceInput").value) || 0.1;
+      state.config.nokTolerance = Number($("nokToleranceInput").value) || 0.25;
+      state.config.seed = Number($("seedInput").value) || 42;
+      syncConfigInputs();
+      refreshAllViews();
+    }
+
+    $("generateCsvButton").addEventListener("click", () => {
+      applyGeneratorFromInputs();
+      generateCsvFile();
+    });
+    ["distributionSelect", "randomnessSelect", "sampleCountInput", "warningToleranceInput", "okToleranceInput", "nokToleranceInput", "seedInput"].forEach((id) => {
+      $(id).addEventListener("input", applyGeneratorFromInputs);
+    });
+    $("productPresetSelect").addEventListener("change", (event) => {
+      state.product = event.target.value;
+      applyPreset(state.product);
+      renderPinView();
+      renderDistributionView();
+      renderControlChart();
+    });
+    $("productSelect").addEventListener("change", (event) => {
+      state.product = event.target.value;
+      applyPreset(state.product);
+      $("productPresetSelect").value = state.product;
+      renderPinView();
+      renderDistributionView();
+      renderControlChart();
+    });
+
+    function bootstrap() {
+      populateProductSelect();
+      state.product = "TE_10Pin_PCBSide";
+      applyPreset("TE_10Pin_PCBSide");
+      renderConnector("connector", state.selectedPin, () => { renderPinView(); renderDistributionView(); });
+      renderConnector("distributionConnector", state.selectedPin, () => { renderDistributionView(); });
+      renderPinSelector();
+      renderControlPinSelector();
+      syncConfigInputs();
+      const tabs = ["tabConfig", "tabPins", "tabDistribution", "tabControl", "tabCsv"];
+      tabs.forEach((id) => {
+        const element = $(id);
+        const panel = $(id.replace("tab", "view"));
+        const isSelected = id === "tabConfig";
+        element.setAttribute("aria-selected", String(isSelected));
+        if (panel) panel.hidden = !isSelected;
+      });
+      fetch("TE_10Pin_PCBSide_Dataset.csv").then((response) => {
+        if (!response.ok) throw new Error("Dataset file is not available beside this page.");
+        return response.text();
+      }).then((text) => loadCsvText(text, "TE_10Pin_PCBSide_Dataset.csv")).catch(() => {
+        $("datasetState").textContent = "Choose a dataset";
+        $("rangeSummary").textContent = "Load a CSV to begin";
+      });
+    }
+
+    bootstrap();
+  </script>
+</body>
+</html>
