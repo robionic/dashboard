@@ -4,6 +4,12 @@
 
 A browser-based inspection dashboard for reviewing PCB pin data, comparing measured values against nominal targets, and spotting outliers across a connector layout. The app is designed for fast quality checks from CSV data and helps operators understand where a board may be drifting outside acceptable limits.
 
+## License and sample data
+
+The MIT license applies to original code and materials created for this repository. Third-party assets, data, dependencies, and model weights retain their own licenses and notices; this repository's MIT license does not relicense them.
+
+`TE_10Pin_PCBSide_Dataset.csv` is a synthetic, randomly generated demonstration dataset. It does not contain real production inspection measurements and is included under this repository's MIT license.
+
 ## 🚀 Key Features
 
 ### Inspection Workflow
